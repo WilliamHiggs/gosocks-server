@@ -52,13 +52,13 @@ func checkToken(w http.ResponseWriter, r *http.Request) {
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 
-	checkToken(w, r)
-
 	if err != nil {
 		log.Fatal(err)
 	}
-	// ensure connection close when function returns
+
 	defer ws.Close()
+
+	checkToken(w, r)
 
 	clients[ws] = true
 
@@ -164,7 +164,7 @@ func main() {
 	rdb = redis.NewClient(opt)
 
 	http.Handle("/", http.FileServer(http.Dir("./public")))
-	http.HandleFunc("/websocket", handleConnections)
+	http.HandleFunc("/ws", handleConnections)
 
 	go handleMessages()
 

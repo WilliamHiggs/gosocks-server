@@ -8,7 +8,10 @@ require (
 	github.com/joho/godotenv v1.5.1
 )
 
+require github.com/google/uuid v1.3.0 // indirect
+
 require (
+	github.com/gorilla/mux v1.8.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.27.10 // indirect
 )

@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 )
 
-const welcomeMessage = "%s joined the channel"
+const connectionMessage = "%s joined the channel"
 
 type Channel struct {
 	ID          uuid.UUID `json:"id"`
@@ -45,7 +43,6 @@ func (channel *Channel) RunChannel() {
 		case message := <-channel.broadcast:
 			channel.broadcastToClientsInChannel(message.encode())
 		}
-
 	}
 }
 
@@ -70,9 +67,9 @@ func (channel *Channel) broadcastToClientsInChannel(message []byte) {
 
 func (channel *Channel) notifyClientJoined(client *Client) {
 	message := &Message{
-		Action:  SendMessageAction,
-		Target:  channel,
-		Message: fmt.Sprintf(welcomeMessage, client.GetName()),
+		Action: SendMessageAction,
+		Event:  MemberAddedAction + ":" + client.GetId(),
+		Target: channel,
 	}
 
 	channel.broadcastToClientsInChannel(message.encode())

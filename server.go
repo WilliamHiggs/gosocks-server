@@ -52,7 +52,8 @@ func (server *WsServer) unsubscribeClient(client *Client) {
 
 func (server *WsServer) notifyClientJoined(client *Client) {
 	message := &Message{
-		Action: UserJoinedAction,
+		Action: MemberAddedAction,
+		Event:  MemberAddedAction,
 		Sender: client,
 	}
 
@@ -61,7 +62,8 @@ func (server *WsServer) notifyClientJoined(client *Client) {
 
 func (server *WsServer) notifyClientLeft(client *Client) {
 	message := &Message{
-		Action: UserLeftAction,
+		Action: MemberRemovedAction,
+		Event:  MemberRemovedAction,
 		Sender: client,
 	}
 
@@ -71,12 +73,12 @@ func (server *WsServer) notifyClientLeft(client *Client) {
 func (server *WsServer) listOnlineClients(client *Client) {
 	for existingClient := range server.clients {
 		message := &Message{
-			Action: UserJoinedAction,
+			Action: MemberAddedAction,
+			Event:  MemberAddedAction,
 			Sender: existingClient,
 		}
 		client.send <- message.encode()
 	}
-
 }
 
 func (server *WsServer) broadcastToClients(message []byte) {

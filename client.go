@@ -44,14 +44,12 @@ type Client struct {
 	wsServer *WsServer
 	send     chan []byte
 	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
 	channels map[*Channel]bool
 }
 
-func newClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
+func newClient(conn *websocket.Conn, wsServer *WsServer) *Client {
 	return &Client{
 		ID:       uuid.New(),
-		Name:     name,
 		conn:     conn,
 		wsServer: wsServer,
 		send:     make(chan []byte, 256),
@@ -138,13 +136,6 @@ func (client *Client) disconnect() {
 // ServeWs handles websocket requests from clients requests.
 func serveWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 
-	name, ok := r.URL.Query()["name"]
-
-	if !ok || len(name[0]) < 1 {
-		log.Println("Url Param 'name' is missing")
-		return
-	}
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
@@ -152,7 +143,7 @@ func serveWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := newClient(conn, wsServer, name[0])
+	client := newClient(conn, wsServer)
 
 	go client.writePump()
 	go client.readPump()
@@ -171,32 +162,41 @@ func (client *Client) handleNewMessage(jsonMessage []byte) {
 	message.Sender = client
 
 	switch message.Action {
+
 	case SendMessageAction:
+		webhook(client.ID.String(), SendMessageAction)
 		channelID := message.Target.GetId()
+
 		if channel := client.wsServer.findChannelByID(channelID); channel != nil {
 			channel.broadcast <- &message
 		}
 
 	case JoinChannelAction:
+		webhook(client.ID.String(), JoinChannelAction)
+
 		client.handleJoinChannelMessage(message)
 
 	case LeaveChannelAction:
+		webhook(client.ID.String(), LeaveChannelAction)
 		client.handleLeaveChannelMessage(message)
 
 	case JoinChannelPrivateAction:
+		webhook(client.ID.String(), JoinChannelPrivateAction)
 		client.handleJoinChannelPrivateMessage(message)
+
 	}
 
 }
 
 func (client *Client) handleJoinChannelMessage(message Message) {
-	channelName := message.Message
+	channelName := message.Target.GetId()
 
 	client.joinChannel(channelName, nil)
 }
 
 func (client *Client) handleLeaveChannelMessage(message Message) {
-	channel := client.wsServer.findChannelByID(message.Message)
+	channel := client.wsServer.findChannelByID(message.Target.GetId())
+
 	if channel == nil {
 		return
 	}
@@ -210,18 +210,17 @@ func (client *Client) handleLeaveChannelMessage(message Message) {
 
 func (client *Client) handleJoinChannelPrivateMessage(message Message) {
 
-	target := client.wsServer.findClientByID(message.Message)
+	target := client.wsServer.findClientByID(message.Target.GetId())
 
 	if target == nil {
 		return
 	}
 
 	// create unique channel name combined to the two IDs
-	channelName := message.Message + client.ID.String()
+	channelName := client.ID.String() + target.ID.String()
 
 	client.joinChannel(channelName, target)
 	target.joinChannel(channelName, client)
-
 }
 
 func (client *Client) joinChannel(channelName string, sender *Client) {
@@ -264,6 +263,6 @@ func (client *Client) notifyChannelJoined(channel *Channel, sender *Client) {
 	client.send <- message.encode()
 }
 
-func (client *Client) GetName() string {
-	return client.Name
+func (client *Client) GetId() string {
+	return client.ID.String()
 }

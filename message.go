@@ -5,19 +5,20 @@ import (
 	"log"
 )
 
-const SendMessageAction = "send-message"
-const JoinChannelAction = "join-channel"
-const LeaveChannelAction = "leave-channel"
-const UserJoinedAction = "user-join"
-const UserLeftAction = "user-left"
-const JoinChannelPrivateAction = "join-channel-private"
-const ChannelJoinedAction = "channel-joined"
+const SendMessageAction = "send_message"
+const JoinChannelAction = "join_channel"
+const LeaveChannelAction = "leave_channel"
+const MemberAddedAction = "member_added"
+const MemberRemovedAction = "member_removed"
+const JoinChannelPrivateAction = "join_channel_private"
+const ChannelJoinedAction = "channel_joined"
 
 type Message struct {
-	Action  string   `json:"action"`
-	Message string   `json:"message"`
-	Target  *Channel `json:"target"`
-	Sender  *Client  `json:"sender"`
+	Action string   `json:"action"`
+	Event  string   `json:"event"`
+	Data   []byte   `json:"data"`
+	Target *Channel `json:"target"`
+	Sender *Client  `json:"sender"`
 }
 
 func (message *Message) encode() []byte {

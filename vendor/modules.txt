@@ -1,17 +1,9 @@
-# github.com/go-redis/redis v6.15.9+incompatible
-## explicit
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/gorilla/mux v1.8.0
-## explicit; go 1.12
 # github.com/gorilla/websocket v1.5.0
 ## explicit; go 1.12
 github.com/gorilla/websocket
 # github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
-# github.com/onsi/ginkgo v1.16.5
-## explicit; go 1.16
-# github.com/onsi/gomega v1.27.10
-## explicit; go 1.18

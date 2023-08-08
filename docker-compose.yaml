@@ -1,19 +1,10 @@
-version: '3.6'
-
+version: '3'
 services:
-    server:
-        container_name: gosocks
-        image: gosocks-server
-        build: ./
-        ports:
-            - 8080:8080
-            - 80:80
-            - 443:443
-
-    redis:
-        container_name: redis
-        image: redis
-        ports:
-            - 6379:6379
-        
-    
+  go-web-app:
+    restart: always
+    build:
+      dockerfile: Dockerfile
+      context: .
+    environment:
+      - VIRTUAL_HOST=dev.gosocks.co.uk
+      - LETSENCRYPT_HOST=dev.gosocks.co.uk

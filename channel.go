@@ -47,9 +47,7 @@ func (channel *Channel) RunChannel() {
 }
 
 func (channel *Channel) subscribeClientInChannel(client *Client) {
-	if !channel.Private {
-		channel.notifyClientJoined(client)
-	}
+	channel.notifyClientJoined(client)
 	channel.clients[client] = true
 }
 
@@ -66,9 +64,16 @@ func (channel *Channel) broadcastToClientsInChannel(message []byte) {
 }
 
 func (channel *Channel) notifyClientJoined(client *Client) {
+	clientId := ""
+
+	if !channel.Private {
+		clientId = ":" + client.GetId()
+	}
+
 	message := &Message{
 		Action: SendMessageAction,
-		Event:  MemberAddedAction + ":" + client.GetId(),
+		Name:   channel.Name,
+		Event:  MemberAddedAction + clientId,
 		Target: channel,
 	}
 

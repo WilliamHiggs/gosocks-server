@@ -24,6 +24,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	err := godotenv.Load()
 
+	log.SetOutput(os.Stdout)
+
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}

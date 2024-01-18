@@ -96,14 +96,18 @@ func (client *Client) writePump() {
 			if !ok {
 				// The WsServer closed the channel.
 				client.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				log.Printf("write-pump client closed the channel")
 				return
 			}
 
 			w, err := client.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				log.Printf("write-pump error on next writer %s", err)
 				return
 			}
 			w.Write(message)
+
+			log.Printf("write-pump message: %v", message)
 
 			// Attach queued chat messages to the current websocket message.
 			n := len(client.send)
@@ -113,11 +117,13 @@ func (client *Client) writePump() {
 			}
 
 			if err := w.Close(); err != nil {
+				log.Printf("write-pump error on close %s", err)
 				return
 			}
 		case <-ticker.C:
 			client.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("write-pump error on write %s", err)
 				return
 			}
 		}
@@ -161,20 +167,17 @@ func (client *Client) handleNewMessage(jsonMessage []byte) {
 
 	message.Sender = client
 
+	log.Printf("handleNewMessage: %v", message)
+
 	switch message.Action {
 
 	case SendMessageAction:
 		webhook(client.ID.String(), SendMessageAction)
-		channelID := message.Target.GetId()
-
-		if channel := client.wsServer.findChannelByID(channelID); channel != nil {
-			channel.broadcast <- &message
-		}
+		client.handleSendMessage(&message)
 
 	case JoinChannelAction:
 		webhook(client.ID.String(), JoinChannelAction)
-
-		client.handleJoinChannelMessage(message)
+		client.joinChannel(message)
 
 	case LeaveChannelAction:
 		webhook(client.ID.String(), LeaveChannelAction)
@@ -182,57 +185,54 @@ func (client *Client) handleNewMessage(jsonMessage []byte) {
 
 	case JoinChannelPrivateAction:
 		webhook(client.ID.String(), JoinChannelPrivateAction)
-		client.handleJoinChannelPrivateMessage(message)
-
+		message.Sender = nil
+		client.joinChannel(message)
+	default:
+		log.Printf("Unknown action %s", message.Action)
 	}
-
 }
 
-func (client *Client) handleJoinChannelMessage(message Message) {
-	channelName := message.Target.GetId()
+func (client *Client) handleSendMessage(message *Message) {
+	if channel := client.wsServer.findChannelByName(message.Name); channel != nil {
+		if !channel.Private {
+			log.Printf("Blocked sending message from a non private channel %s", channel.Name)
+			return
+		}
 
-	client.joinChannel(channelName, nil)
+		channel.broadcast <- message
+	}
 }
 
 func (client *Client) handleLeaveChannelMessage(message Message) {
-	channel := client.wsServer.findChannelByID(message.Target.GetId())
+	channel := client.wsServer.findChannelByName(message.Name)
 
 	if channel == nil {
+		log.Printf("Tried to leave a channel that doesn't exist %s", message.Name)
 		return
 	}
 
-	if _, ok := client.channels[channel]; ok {
+	if client.isInChannel(channel) {
 		delete(client.channels, channel)
 	}
 
 	channel.unsubscribe <- client
+
+	client.notifyChannelLeave(channel, nil)
 }
 
-func (client *Client) handleJoinChannelPrivateMessage(message Message) {
-
-	target := client.wsServer.findClientByID(message.Target.GetId())
-
-	if target == nil {
-		return
-	}
-
-	// create unique channel name combined to the two IDs
-	channelName := client.ID.String() + target.ID.String()
-
-	client.joinChannel(channelName, target)
-	target.joinChannel(channelName, client)
-}
-
-func (client *Client) joinChannel(channelName string, sender *Client) {
+func (client *Client) joinChannel(message Message) {
+	channelName := message.Name
+	sender := message.Sender
 
 	channel := client.wsServer.findChannelByName(channelName)
 
 	if channel == nil {
-		channel = client.wsServer.createChannel(channelName, sender != nil)
+		channel = client.wsServer.createChannel(channelName, sender == nil)
 	}
 
 	// Don't allow to join private channels through public channel message
-	if sender == nil && channel.Private {
+	if sender != nil && channel.Private {
+		log.Printf("Tried to join private channel through public channel message %s", channel.Name)
 		return
 	}
 
@@ -256,6 +256,20 @@ func (client *Client) isInChannel(channel *Channel) bool {
 func (client *Client) notifyChannelJoined(channel *Channel, sender *Client) {
 	message := Message{
 		Action: ChannelJoinedAction,
+		Event:  ChannelJoinedAction,
+		Name:   channel.Name,
+		Target: channel,
+		Sender: sender,
+	}
+
+	client.send <- message.encode()
+}
+
+func (client *Client) notifyChannelLeave(channel *Channel, sender *Client) {
+	message := Message{
+		Action: LeaveChannelAction,
+		Event:  LeaveChannelAction,
+		Name:   channel.Name,
 		Target: channel,
 		Sender: sender,
 	}

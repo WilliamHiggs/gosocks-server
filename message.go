@@ -16,6 +16,7 @@ const ChannelJoinedAction = "channel_joined"
 type Message struct {
 	Action string   `json:"action"`
 	Event  string   `json:"event"`
+	Name   string   `json:"name"`
 	Data   []byte   `json:"data"`
 	Target *Channel `json:"target"`
 	Sender *Client  `json:"sender"`

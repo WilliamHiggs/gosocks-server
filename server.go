@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type WsServer struct {
 	clients     map[*Client]bool
 	subscribe   chan *Client
@@ -52,19 +54,22 @@ func (server *WsServer) unsubscribeClient(client *Client) {
 
 func (server *WsServer) notifyClientJoined(client *Client) {
 	message := &Message{
-		Action: MemberAddedAction,
-		Event:  MemberAddedAction,
-		Sender: client,
+		Action:    MemberAddedAction,
+		Event:     MemberAddedAction,
+		Sender:    client,
+		Timestamp: time.Now().Unix(),
 	}
 
 	server.broadcastToClients(message.encode())
 }
 
 func (server *WsServer) notifyClientLeft(client *Client) {
+
 	message := &Message{
-		Action: MemberRemovedAction,
-		Event:  MemberRemovedAction,
-		Sender: client,
+		Action:    MemberRemovedAction,
+		Event:     MemberRemovedAction,
+		Sender:    client,
+		Timestamp: time.Now().Unix(),
 	}
 
 	server.broadcastToClients(message.encode())
@@ -73,9 +78,10 @@ func (server *WsServer) notifyClientLeft(client *Client) {
 func (server *WsServer) listOnlineClients(client *Client) {
 	for existingClient := range server.clients {
 		message := &Message{
-			Action: MemberAddedAction,
-			Event:  MemberAddedAction,
-			Sender: existingClient,
+			Action:    MemberAddedAction,
+			Event:     MemberAddedAction,
+			Sender:    existingClient,
+			Timestamp: 9000,
 		}
 		client.send <- message.encode()
 	}
@@ -99,6 +105,16 @@ func (server *WsServer) findChannelByName(name string) *Channel {
 	return foundChannel
 }
 
+func (server *WsServer) createChannel(name string, private bool) *Channel {
+	channel := NewChannel(name, private)
+	go channel.RunChannel()
+	server.channels[channel] = true
+
+	return channel
+}
+
+// UNUSED FOR NOW
+/*
 func (server *WsServer) findChannelByID(ID string) *Channel {
 	var foundChannel *Channel
 	for channel := range server.channels {
@@ -109,14 +125,6 @@ func (server *WsServer) findChannelByID(ID string) *Channel {
 	}
 
 	return foundChannel
-}
-
-func (server *WsServer) createChannel(name string, private bool) *Channel {
-	channel := NewChannel(name, private)
-	go channel.RunChannel()
-	server.channels[channel] = true
-
-	return channel
 }
 
 func (server *WsServer) findClientByID(ID string) *Client {
@@ -130,3 +138,4 @@ func (server *WsServer) findClientByID(ID string) *Client {
 
 	return foundClient
 }
+*/

@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -19,26 +19,34 @@ func webhook(clientId string, event string) {
 	data := []byte(`{"client_id":"` + clientId + `","event":"` + event + `"}`)
 
 	// create new http request
-	request, error := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+
+	if err != nil {
+		log.Printf("Error on sending client webhook %s", err)
+		return
+	}
+
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	// send the request
 	client := &http.Client{}
-	response, error := client.Do(request)
+	response, err := client.Do(request)
 
-	if error != nil {
-		fmt.Println(error)
+	if err != nil {
+		log.Printf("Error on sending client webhook %s", err)
+		return
 	}
 
-	responseBody, error := io.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 
-	if error != nil {
-		fmt.Println(error)
+	if err != nil {
+		log.Printf("Error on sending client webhook %s", err)
+		return
 	}
 
 	formattedData := formatJSON(responseBody)
-	fmt.Println("Status: ", response.Status)
-	fmt.Println("Response body: ", formattedData)
+	log.Printf("Status: %s", response.Status)
+	log.Printf("Response body: %s", formattedData)
 
 	// clean up memory after execution
 	defer response.Body.Close()
@@ -49,7 +57,7 @@ func formatJSON(data []byte) string {
 	err := json.Indent(&out, data, "", " ")
 
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("Webhook Format JSON Error: %s", err)
 	}
 
 	d := out.Bytes()

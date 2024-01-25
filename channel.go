@@ -1,10 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
-
-const connectionMessage = "%s joined the channel"
 
 type Channel struct {
 	ID          uuid.UUID `json:"id"`
@@ -52,9 +52,8 @@ func (channel *Channel) subscribeClientInChannel(client *Client) {
 }
 
 func (channel *Channel) unsubscribeClientInChannel(client *Client) {
-	if _, ok := channel.clients[client]; ok {
-		delete(channel.clients, client)
-	}
+	channel.notifyClientLeft(client)
+	delete(channel.clients, client)
 }
 
 func (channel *Channel) broadcastToClientsInChannel(message []byte) {
@@ -64,6 +63,7 @@ func (channel *Channel) broadcastToClientsInChannel(message []byte) {
 }
 
 func (channel *Channel) notifyClientJoined(client *Client) {
+
 	clientId := ""
 
 	if !channel.Private {
@@ -71,10 +71,30 @@ func (channel *Channel) notifyClientJoined(client *Client) {
 	}
 
 	message := &Message{
-		Action: SendMessageAction,
-		Name:   channel.Name,
-		Event:  MemberAddedAction + clientId,
-		Target: channel,
+		Action:    MemberAddedAction,
+		Name:      channel.Name,
+		Event:     MemberAddedAction + clientId,
+		Target:    channel,
+		Timestamp: time.Now().Unix(),
+	}
+
+	channel.broadcastToClientsInChannel(message.encode())
+}
+
+func (channel *Channel) notifyClientLeft(client *Client) {
+
+	clientId := ""
+
+	if !channel.Private {
+		clientId = ":" + client.GetId()
+	}
+
+	message := &Message{
+		Action:    MemberRemovedAction,
+		Name:      channel.Name,
+		Event:     MemberRemovedAction + clientId,
+		Target:    channel,
+		Timestamp: time.Now().Unix(),
 	}
 
 	channel.broadcastToClientsInChannel(message.encode())

@@ -25,8 +25,7 @@ const (
 )
 
 var (
-	newline = []byte{'\n'}
-	space   = []byte{' '}
+	plus = []byte{'+'}
 )
 
 var upgrader = websocket.Upgrader{
@@ -70,7 +69,7 @@ func (client *Client) readPump() {
 	for {
 		_, jsonMessage, err := client.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("unexpected close error: %v", err)
 			}
 			break
@@ -107,12 +106,10 @@ func (client *Client) writePump() {
 			}
 			w.Write(message)
 
-			log.Printf("write-pump message: %v", message)
-
 			// Attach queued chat messages to the current websocket message.
 			n := len(client.send)
 			for i := 0; i < n; i++ {
-				w.Write(newline)
+				w.Write(plus)
 				w.Write(<-client.send)
 			}
 
@@ -160,8 +157,10 @@ func serveWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 func (client *Client) handleNewMessage(jsonMessage []byte) {
 
 	var message Message
+
 	if err := json.Unmarshal(jsonMessage, &message); err != nil {
 		log.Printf("Error on unmarshal JSON message %s", err)
+		webhook(client.ID.String(), ChannelUnexpectedError)
 		return
 	}
 
@@ -198,6 +197,9 @@ func (client *Client) handleSendMessage(message *Message) {
 			log.Printf("Blocked sending message from a non private channel %s", channel.Name)
 			return
 		}
+
+		message.Target = channel
+		message.Timestamp = time.Now().Unix()
 
 		channel.broadcast <- message
 	}
@@ -255,11 +257,12 @@ func (client *Client) isInChannel(channel *Channel) bool {
 
 func (client *Client) notifyChannelJoined(channel *Channel, sender *Client) {
 	message := Message{
-		Action: ChannelJoinedAction,
-		Event:  ChannelJoinedAction,
-		Name:   channel.Name,
-		Target: channel,
-		Sender: sender,
+		Action:    ChannelJoinedAction,
+		Event:     ChannelJoinedAction,
+		Name:      channel.Name,
+		Target:    channel,
+		Sender:    sender,
+		Timestamp: time.Now().Unix(),
 	}
 
 	client.send <- message.encode()
@@ -267,11 +270,12 @@ func (client *Client) notifyChannelJoined(channel *Channel, sender *Client) {
 
 func (client *Client) notifyChannelLeave(channel *Channel, sender *Client) {
 	message := Message{
-		Action: LeaveChannelAction,
-		Event:  LeaveChannelAction,
-		Name:   channel.Name,
-		Target: channel,
-		Sender: sender,
+		Action:    LeaveChannelAction,
+		Event:     LeaveChannelAction,
+		Name:      channel.Name,
+		Target:    channel,
+		Sender:    sender,
+		Timestamp: time.Now().Unix(),
 	}
 
 	client.send <- message.encode()
